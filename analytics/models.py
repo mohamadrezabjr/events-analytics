@@ -8,4 +8,4 @@ class Event(models.Model):
     session_id = models.CharField(max_length=256, null=True, blank=True)
     metadata = models.JSONField(null=True, blank=True)
     def __str__(self):
-        return self.event_name, self.server_timestamp
+        return f'{self.event_name}  server_time : {self.server_timestamp.strftime("%Y-%m-%d %H:%M:%S")}'

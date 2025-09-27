@@ -18,6 +18,7 @@
     </content>
     <orderEntry type="jdk" jdkName="Python 3.13 virtualenv at ~/Python/Django/events-analytics/venv" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
+    <orderEntry type="module" module-name="Scripts" />
   </component>
   <component name="PyDocumentationSettings">
     <option name="format" value="PLAIN" />

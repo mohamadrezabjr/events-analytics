@@ -32,12 +32,13 @@ def analytics_view(request):
             # Aggregate
             aggregate = serializer.validated_data.get('aggregate') or 'count'
             field = serializer.validated_data.get('field')
+            print(field)
 
             # Metadata fields
             metadata_fields = ['device', 'browser', 'page', 'referer', 'product_id', 'product', 'price']
-            for field in metadata_fields:
+            for metadata_field in metadata_fields:
                 if serializer.validated_data.get(field):
-                    filters[f'metadata__{field}'] = serializer.validated_data[field]
+                    filters[f'metadata__{metadata_field}'] = serializer.validated_data[metadata_field]
 
             if metric:
                 filters['event_name'] = metric
@@ -85,6 +86,8 @@ def analytics_view(request):
                     queryset = queryset.aggregate(**{f'min_{field}' : Min(f'{field}_numeric')})
                 if aggregate == 'max':
                     queryset = queryset.aggregate(**{f'max_{field}' : Max(f'{field}_numeric')})
+                if aggregate == 'count':
+                    queryset = queryset.aggregate(count = Count('id'))
 
             return Response({'request' : request.GET ,'analytics' :queryset})
 

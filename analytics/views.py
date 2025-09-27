@@ -46,7 +46,7 @@ def analytics_view(request):
             if session_id:
                 filters['session_id'] = session_id
 
-            queryset = Event.objects.filter(**filters)
+            queryset = Event.objects.filter(**filters).values()
 
             if start_time:
                 queryset = queryset.filter(client_timestamp__gte=start_time)
@@ -86,7 +86,7 @@ def analytics_view(request):
                 if aggregate == 'max':
                     queryset = queryset.aggregate(**{f'max_{field}' : Max(f'{field}_numeric')})
 
-            return Response({'report' : request.GET ,'information' :queryset})
+            return Response({'request' : request.GET ,'analytics' :queryset})
 
         return JsonResponse(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     return JsonResponse({'error': 'Invalid request.'})

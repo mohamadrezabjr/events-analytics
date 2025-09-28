@@ -1,3 +1,5 @@
+from dataclasses import field
+
 from django.http import JsonResponse
 from django.shortcuts import render
 from rest_framework import generics, status
@@ -29,7 +31,7 @@ def get_analytics_queryset(data):
         # Group by :
         group_by = serializer.validated_data.get('group_by')
         # Aggregate
-        aggregate = serializer.validated_data.get('aggregate') or 'count'
+        aggregate = serializer.validated_data.get('aggregate')
         field = serializer.validated_data.get('field')
 
         # Metadata fields
@@ -63,17 +65,18 @@ def get_analytics_queryset(data):
 
             if aggregate:
                 if aggregate == 'sum':
-                    queryset = queryset.annotate(sum=Sum(f'{field}_numeric'))
+                    queryset = queryset.annotate(**{f'{field}_sum': Sum(f'{field}_numeric')}).order_by('-date')
                 if aggregate == 'avg':
-                    queryset = queryset.annotate(avg=Avg(f'{field}_numeric'))
+                    queryset = queryset.annotate(**{f"avg_{field}":Avg(f'{field}_numeric')}).order_by('-date')
                 if aggregate == 'min':
-                    queryset = queryset.annotate(min=Min(f'{field}_numeric'))
+                    queryset = queryset.annotate(**{f"min_{field}":Min(f'{field}_numeric')}).order_by('-date')
                 if aggregate == 'max':
-                    queryset = queryset.annotate(max=Max(f'{field}_numeric'))
+                    queryset = queryset.annotate(**{f'max_{field}': Max(f'{field}_numeric')}).order_by('-date')
                 if aggregate == 'count':
-                    queryset = queryset.annotate(count=Count('id'))
+                    queryset = queryset.annotate(count=Count('id')).order_by('-date')
             else:
-                queryset = queryset.annotate(count=Count('id'))
+                queryset = queryset.annotate(count=Count('id')).order_by('-date')
+
         else:
             if aggregate == 'sum':
                 queryset = queryset.aggregate(**{f'{field}_sum': Sum(f'{field}_numeric')})
@@ -85,7 +88,9 @@ def get_analytics_queryset(data):
                 queryset = queryset.aggregate(**{f'max_{field}': Max(f'{field}_numeric')})
             if aggregate == 'count':
                 queryset = queryset.aggregate(count=Count('id'))
+
         return True,queryset
+
     return False, serializer.errors
 
 
@@ -94,7 +99,13 @@ def analytics_view(request):
     if request.method == 'GET':
         success ,data = get_analytics_queryset(data=request.GET)
         if success:
-            return Response({'request' : request.GET ,'analytics' :data})
-        return Response(data)
+            return Response({'request' : request.GET ,'analytics' :data}, status=status.HTTP_200_OK)
+        return Response({'errors' : data}, status=status.HTTP_400_BAD_REQUEST)
 
-    return JsonResponse({'error': 'Invalid request.'})
+    if request.method == 'POST':
+        success ,data = get_analytics_queryset(data=request.data)
+        if success:
+            return Response({'request' : request.data ,'analytics' :data}, status=status.HTTP_200_OK)
+        return Response({'errors' : data}, status=status.HTTP_400_BAD_REQUEST)
+
+    return JsonResponse({'error': 'Invalid request.'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)

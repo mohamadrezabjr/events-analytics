@@ -10,12 +10,12 @@ products = ['Shoes', 'Bag', 'Watch', 'Shirt', 'Hat']
 
 events = []
 
-for i in range(100):
+for i in range(50):
     k = random.random()
 
-    event_name = 'page_view' if k < 0.6 else 'purchase_page_view' if k < 0.8 else 'button'
+    event_name = 'page_view' if k < 0.6 else 'purchase' if k < 0.8 else 'button'
     event = {
-        "event_name": "page_view" if k < 0.8 else "purchase",
+        "event_name": event_name,
         "user_id": random.randint(1, 20),
         "session_id": f"session_{random.randint(1, 10)}",
         "client_timestamp": (datetime.now() - timedelta(days=random.randint(0, 10),
@@ -30,9 +30,7 @@ for i in range(100):
             "product": random.choice(products),
         }
     }
-
     if event_name == 'purchase':
         event['metadata']['price'] = round(random.uniform(10, 500), 2)
         event['metadata']['page'] = random.choice(f'products/{event["metadata"]["product_id"]}')
-
     Event.objects.create(**event)

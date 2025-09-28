@@ -82,11 +82,11 @@ WSGI_APPLICATION = 'events_analytics.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'mydatabase',
-        'USER': str(os.getenv('POSTGRES_USER')),
-        'PASSWORD': str(os.getenv('POSTGRES_PASSWORD')),
-        'HOST': 'localhost',
-        'PORT': '5432',
+        'NAME': str(os.getenv('DATABASE_NAME', 'mydatabase')),
+        'USER': str(os.getenv('DATABASE_USER')),
+        'PASSWORD': str(os.getenv('DATABASE_PASSWORD')),
+        'HOST': str(os.getenv('DATABASE_HOST' ,'localhost')),
+        'PORT': str(os.getenv('database_port' ,'5432'))
     }
 }
 
@@ -133,5 +133,5 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-CELERY_BROKER_URL = 'redis://localhost:6379/1'
-CELERY_RESULT_BACKEND = 'redis://localhost:6379/1'
+CELERY_BROKER_URL = f'redis://{str(os.getenv('REDIS_HOST', 'localhost'))}:6379/1'
+CELERY_RESULT_BACKEND = f'redis://{str(os.getenv('REDIS_HOST', 'localhost'))}:6379/1'

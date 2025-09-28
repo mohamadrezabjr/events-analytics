@@ -15,86 +15,86 @@ class CreateEvent(generics.CreateAPIView):
         create_event.delay(data)
 
 def get_analytics_queryset(data):
-    pass
-@api_view(['GET'])
+    serializer = EventSerializer(data=data)
+
+    if serializer.is_valid():
+        filters = {}
+
+        metric = serializer.validated_data.get('metric')
+        user_id = serializer.validated_data.get('user_id')
+        session_id = serializer.validated_data.get('session_id')
+        start_time = serializer.validated_data.get('from_date')
+        end_time = serializer.validated_data.get('to_date')
+
+        # Group by :
+        group_by = serializer.validated_data.get('group_by')
+        # Aggregate
+        aggregate = serializer.validated_data.get('aggregate') or 'count'
+        field = serializer.validated_data.get('field')
+
+        # Metadata fields
+        metadata_fields = ['device', 'browser', 'page', 'referer', 'product_id', 'product', 'price']
+        for metadata_field in metadata_fields:
+            if serializer.validated_data.get(field):
+                filters[f'metadata__{metadata_field}'] = serializer.validated_data[metadata_field]
+
+        if metric:
+            filters['event_name'] = metric
+        if user_id:
+            filters['user_id'] = user_id
+        if session_id:
+            filters['session_id'] = session_id
+
+        queryset = Event.objects.filter(**filters).values()
+
+        if start_time:
+            queryset = queryset.filter(client_timestamp__gte=start_time)
+        if end_time:
+            queryset = queryset.filter(client_timestamp__lte=end_time)
+
+        if field:
+            queryset = queryset.annotate(
+                **{field + '_numeric': Cast(F(f'metadata__{field}'), FloatField())}
+            )
+
+        if group_by:
+            queryset = queryset.annotate(date=Trunc('client_timestamp', group_by, output_field=DateTimeField()))
+            queryset = queryset.values('date')
+
+            if aggregate:
+                if aggregate == 'sum':
+                    queryset = queryset.annotate(sum=Sum(f'{field}_numeric'))
+                if aggregate == 'avg':
+                    queryset = queryset.annotate(avg=Avg(f'{field}_numeric'))
+                if aggregate == 'min':
+                    queryset = queryset.annotate(min=Min(f'{field}_numeric'))
+                if aggregate == 'max':
+                    queryset = queryset.annotate(max=Max(f'{field}_numeric'))
+                if aggregate == 'count':
+                    queryset = queryset.annotate(count=Count('id'))
+            else:
+                queryset = queryset.annotate(count=Count('id'))
+        else:
+            if aggregate == 'sum':
+                queryset = queryset.aggregate(**{f'{field}_sum': Sum(f'{field}_numeric')})
+            if aggregate == 'avg':
+                queryset = queryset.aggregate(**{f'{field}_avg': Avg(f'{field}_numeric')})
+            if aggregate == 'min':
+                queryset = queryset.aggregate(**{f'min_{field}': Min(f'{field}_numeric')})
+            if aggregate == 'max':
+                queryset = queryset.aggregate(**{f'max_{field}': Max(f'{field}_numeric')})
+            if aggregate == 'count':
+                queryset = queryset.aggregate(count=Count('id'))
+        return True,queryset
+    return False, serializer.errors
+
+
+@api_view(['GET', 'POST'])
 def analytics_view(request):
     if request.method == 'GET':
+        success ,data = get_analytics_queryset(data=request.GET)
+        if success:
+            return Response({'request' : request.GET ,'analytics' :data})
+        return Response(data)
 
-        serializer = EventSerializer(data=request.GET)
-
-        if serializer.is_valid():
-            filters = {}
-
-            metric = serializer.validated_data.get('metric')
-            user_id = serializer.validated_data.get('user_id')
-            session_id = serializer.validated_data.get('session_id')
-            start_time = serializer.validated_data.get('from_date')
-            end_time = serializer.validated_data.get('to_date')
-
-
-            # Group by :
-            group_by = serializer.validated_data.get('group_by')
-            # Aggregate
-            aggregate = serializer.validated_data.get('aggregate') or 'count'
-            field = serializer.validated_data.get('field')
-            print(field)
-
-            # Metadata fields
-            metadata_fields = ['device', 'browser', 'page', 'referer', 'product_id', 'product', 'price']
-            for metadata_field in metadata_fields:
-                if serializer.validated_data.get(field):
-                    filters[f'metadata__{metadata_field}'] = serializer.validated_data[metadata_field]
-
-            if metric:
-                filters['event_name'] = metric
-            if user_id:
-                filters['user_id'] = user_id
-            if session_id:
-                filters['session_id'] = session_id
-
-            queryset = Event.objects.filter(**filters).values()
-
-            if start_time:
-                queryset = queryset.filter(client_timestamp__gte=start_time)
-            if end_time:
-                queryset = queryset.filter(client_timestamp__lte=end_time)
-
-            if field:
-                queryset = queryset.annotate(
-                    **{field+'_numeric' : Cast(F(f'metadata__{field}'), FloatField())}
-                )
-
-
-            if group_by:
-                queryset = queryset.annotate(date = Trunc('client_timestamp', group_by, output_field=DateTimeField()))
-                queryset = queryset.values('date')
-
-                if aggregate:
-                    if aggregate == 'sum':
-                        queryset = queryset.annotate(sum = Sum(f'{field}_numeric'))
-                    if aggregate == 'avg':
-                        queryset = queryset.annotate(avg = Avg(f'{field}_numeric'))
-                    if aggregate == 'min':
-                        queryset = queryset.annotate(min = Min(f'{field}_numeric'))
-                    if aggregate == 'max':
-                        queryset = queryset.annotate(max = Max(f'{field}_numeric'))
-                    if aggregate == 'count':
-                        queryset = queryset.annotate(count = Count('id'))
-                else :
-                    queryset = queryset.annotate(count = Count('id'))
-            else :
-                if aggregate == 'sum':
-                    queryset = queryset.aggregate(**{f'{field}_sum' : Sum(f'{field}_numeric')})
-                if aggregate == 'avg':
-                    queryset = queryset.aggregate(**{f'{field}_avg' : Avg(f'{field}_numeric')})
-                if aggregate == 'min':
-                    queryset = queryset.aggregate(**{f'min_{field}' : Min(f'{field}_numeric')})
-                if aggregate == 'max':
-                    queryset = queryset.aggregate(**{f'max_{field}' : Max(f'{field}_numeric')})
-                if aggregate == 'count':
-                    queryset = queryset.aggregate(count = Count('id'))
-
-            return Response({'request' : request.GET ,'analytics' :queryset})
-
-        return JsonResponse(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     return JsonResponse({'error': 'Invalid request.'})

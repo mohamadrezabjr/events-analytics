@@ -1,0 +1,61 @@
+services:
+  db:
+    image: postgres:15
+    container_name: postgres_test
+    restart: always
+    environment:
+      POSTGRES_DB: mydatabase
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    container_name: myredis
+    restart: always
+    ports:
+      - "6379:6379"
+
+  web:
+    build: .
+    container_name: django_web
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - redis
+    environment:
+      - DATABASE_NAME=mydatabase
+      - DATABASE_USER=myuser
+      - DATABASE_PASSWORD=mypassword
+      - DATABASE_HOST=db
+      - DATABASE_PORT=5432
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+
+  celery:
+    build: .
+    container_name: celery_worker
+    command: celery -A events_analytics worker --loglevel=info
+    volumes:
+      - .:/app
+    depends_on:
+      - db
+      - redis
+    environment:
+      - DATABASE_NAME=mydatabase
+      - DATABASE_USER=myuser
+      - DATABASE_PASSWORD=mypassword
+      - DATABASE_HOST=db
+      - DATABASE_PORT=5432
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+
+volumes:
+  pgdata:

@@ -41,5 +41,5 @@ class EventSerializer(serializers.Serializer):
     def validate(self, data):
         if data.get('aggregate') in ['sum', 'avg', 'min', 'max']:
             if not data.get('field'):
-                raise serializers.ValidationError(f'For this aggregation ({data.get('aggregate')}), \"Field\" is required')
+                raise serializers.ValidationError(f'For this aggregation ({data.get("aggregate")}), \"Field\" is required')
         return data

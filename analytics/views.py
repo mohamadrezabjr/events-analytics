@@ -3,14 +3,19 @@ from django.shortcuts import render
 from rest_framework import generics, status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-
+from analytics.tasks import create_event
 from analytics.models import Event
 from analytics.serializers import CreateEventSerializer, EventSerializer
 from django.db.models import Sum, Avg, DateTimeField, Count, Min, Max, F, FloatField
 from django.db.models.functions import Trunc, Cast
 class CreateEvent(generics.CreateAPIView):
     serializer_class = CreateEventSerializer
+    def perform_create(self, serializer):
+        data =serializer.validated_data
+        create_event.delay(data)
 
+def get_analytics_queryset(data):
+    pass
 @api_view(['GET'])
 def analytics_view(request):
     if request.method == 'GET':

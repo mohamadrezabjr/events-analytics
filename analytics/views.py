@@ -1,15 +1,23 @@
-from dataclasses import field
+import hashlib
+import json
+from datetime import datetime
 
+from django.core.serializers.json import DjangoJSONEncoder
 from django.http import JsonResponse
-from django.shortcuts import render
+from django_redis import get_redis_connection
+
 from rest_framework import generics, status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
+
 from analytics.tasks import create_event
 from analytics.models import Event
+
 from analytics.serializers import CreateEventSerializer, EventSerializer
-from django.db.models import Sum, Avg, DateTimeField, Count, Min, Max, F, FloatField, TextField, Value
-from django.db.models.functions import Trunc, Cast, Coalesce, NullIf
+from django.db.models import Sum, Avg, DateTimeField, Count, Min, Max, F, FloatField
+from django.db.models.functions import Trunc, Cast
+
+
 
 AGGREGATE_FUNCS = {
     'sum': Sum,
@@ -18,6 +26,7 @@ AGGREGATE_FUNCS = {
     'max': Max,
     'count': Count,
 }
+CACHE_LIMIT = 256*1024*1024
 
 
 
@@ -105,15 +114,76 @@ def get_analytics_queryset(data):
 @api_view(['GET', 'POST'])
 def analytics_view(request):
     if request.method == 'GET':
-        success ,data = get_analytics_queryset(data=request.GET)
-        if success:
-            return Response({'request' : request.GET ,'analytics' :data}, status=status.HTTP_200_OK)
-        return Response({'errors' : data}, status=status.HTTP_400_BAD_REQUEST)
+        cached_data =get_cache(request.GET)
+        if cached_data :
+            return Response({'request' : request.GET ,'analytics' :cached_data}, status=status.HTTP_200_OK)
+        else:
+            success ,data = get_analytics_queryset(request.GET)
+            if success:
+                save_cache(request.GET, data)
+                return Response({'request': request.GET, 'analytics': data}, status=status.HTTP_200_OK)
+            return Response({'errors' : data}, status=status.HTTP_400_BAD_REQUEST)
 
     if request.method == 'POST':
-        success ,data = get_analytics_queryset(data=request.data)
+        cached_data = get_cache(request.data)
+        if cached_data :
+            return Response({'request' : request.data ,'analytics' :cached_data}, status=status.HTTP_200_OK)
+
+        success, data = get_analytics_queryset(request.data)
         if success:
-            return Response({'request' : request.data ,'analytics' :data}, status=status.HTTP_200_OK)
+            save_cache(request.data, data)
+            return Response({'request': request.data, 'analytics': data}, status=status.HTTP_200_OK)
         return Response({'errors' : data}, status=status.HTTP_400_BAD_REQUEST)
 
     return JsonResponse({'error': 'Invalid request.'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+def hash_data(data):
+    return hashlib.sha256(json.dumps(data, sort_keys = True).encode()).hexdigest()
+
+def get_cache(key):
+    con = get_redis_connection('default')
+    hashed_key = hash_data(key)
+    cached = con.get(f'request:{hashed_key}')
+
+    if cached:
+        cached = json.loads(cached)
+        cached['hits'] += 1
+        cached['last_used'] = datetime.now()
+        con.set(f'request:{hashed_key}', json.dumps(cached, sort_keys = True, cls=DjangoJSONEncoder))
+        return cached.get('data')
+    else:
+        return None
+def save_cache(key, data):
+    con = get_redis_connection('default')
+    info = con.info('memory')
+    used_memory = info['used_memory']
+    if used_memory > CACHE_LIMIT:
+        delete_least_used()
+
+    if not isinstance(data, dict):
+        data = list(data)
+
+    hashed_key = hash_data(key)
+    wrapper = {
+        'hits': 1,
+        'last_used': datetime.now(),
+        'data' : data,
+    }
+
+    con.set(f'request:{hashed_key}', json.dumps(wrapper, sort_keys = True, cls=DjangoJSONEncoder))
+
+def delete_least_used():
+    con = get_redis_connection('default')
+    keys = con.keys('request:*')
+    min_key = None
+    min_hits = None
+    for key in keys:
+        data = con.get(key)
+        if data:
+            data = json.loads(data)
+            if min_hits is None or data.get('hits') <= min_hits:
+                min_key = key
+                min_hits = data.get('hits')
+    if min_key :
+        con.delete(min_key)
+

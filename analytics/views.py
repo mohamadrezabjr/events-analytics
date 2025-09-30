@@ -8,8 +8,19 @@ from rest_framework.response import Response
 from analytics.tasks import create_event
 from analytics.models import Event
 from analytics.serializers import CreateEventSerializer, EventSerializer
-from django.db.models import Sum, Avg, DateTimeField, Count, Min, Max, F, FloatField
-from django.db.models.functions import Trunc, Cast
+from django.db.models import Sum, Avg, DateTimeField, Count, Min, Max, F, FloatField, TextField, Value
+from django.db.models.functions import Trunc, Cast, Coalesce, NullIf
+
+AGGREGATE_FUNCS = {
+    'sum': Sum,
+    'avg': Avg,
+    'min': Min,
+    'max': Max,
+    'count': Count,
+}
+
+
+
 class CreateEvent(generics.CreateAPIView):
     serializer_class = CreateEventSerializer
     def perform_create(self, serializer):
@@ -46,49 +57,46 @@ def get_analytics_queryset(data):
             filters['user_id'] = user_id
         if session_id:
             filters['session_id'] = session_id
+        sort_by = serializer.validated_data.get('sort_by')
+        if sort_by == 'timestamp':
+            sort_by = 'client_timestamp'
+        order = serializer.validated_data.get('order')
 
         queryset = Event.objects.filter(**filters).values()
-
         if start_time:
             queryset = queryset.filter(client_timestamp__gte=start_time)
         if end_time:
             queryset = queryset.filter(client_timestamp__lte=end_time)
-
+        field_name = None
         if field:
             queryset = queryset.annotate(
                 **{field + '_numeric': Cast(F(f'metadata__{field}'), FloatField())}
             )
-
+            field_name = field + '_numeric'
         if group_by:
             queryset = queryset.annotate(date=Trunc('client_timestamp', group_by, output_field=DateTimeField()))
             queryset = queryset.values('date')
 
-            if aggregate:
-                if aggregate == 'sum':
-                    queryset = queryset.annotate(**{f'{field}_sum': Sum(f'{field}_numeric')}).order_by('-date')
-                if aggregate == 'avg':
-                    queryset = queryset.annotate(**{f"avg_{field}":Avg(f'{field}_numeric')}).order_by('-date')
-                if aggregate == 'min':
-                    queryset = queryset.annotate(**{f"min_{field}":Min(f'{field}_numeric')}).order_by('-date')
-                if aggregate == 'max':
-                    queryset = queryset.annotate(**{f'max_{field}': Max(f'{field}_numeric')}).order_by('-date')
-                if aggregate == 'count':
-                    queryset = queryset.annotate(count=Count('id')).order_by('-date')
+            if aggregate in ['sum', 'avg', 'min', 'max', 'count']:
+                agg_func = AGGREGATE_FUNCS[aggregate]
+                key = f"{aggregate}_{field}" if aggregate != 'count' else 'count'
+                queryset = queryset.annotate(**{key : agg_func(field_name)})
+
             else:
-                queryset = queryset.annotate(count=Count('id')).order_by('-date')
+                queryset = queryset.annotate(count=Count('id'))
 
+            if sort_by:
+                order_pre = '' if order =='asc' else '-'
+                queryset = queryset.order_by(order_pre + sort_by)
+            else:
+                queryset = queryset.order_by('-date')
         else:
-            if aggregate == 'sum':
-                queryset = queryset.aggregate(**{f'{field}_sum': Sum(f'{field}_numeric')})
-            if aggregate == 'avg':
-                queryset = queryset.aggregate(**{f'{field}_avg': Avg(f'{field}_numeric')})
-            if aggregate == 'min':
-                queryset = queryset.aggregate(**{f'min_{field}': Min(f'{field}_numeric')})
-            if aggregate == 'max':
-                queryset = queryset.aggregate(**{f'max_{field}': Max(f'{field}_numeric')})
-            if aggregate == 'count':
+            if aggregate in ['sum', 'avg', 'min', 'max']:
+                agg_func = AGGREGATE_FUNCS[aggregate]
+                key = f"{aggregate}_{field}" if aggregate != 'count' else 'count'
+                queryset = queryset.aggregate(**{key : agg_func(field_name)})
+            elif aggregate == 'count':
                 queryset = queryset.aggregate(count=Count('id'))
-
         return True,queryset
 
     return False, serializer.errors

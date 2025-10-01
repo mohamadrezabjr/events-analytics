@@ -1,13 +1,13 @@
 from django.http import JsonResponse
 
-from rest_framework import generics, status
+from rest_framework import generics, status , mixins
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
 from analytics.tasks import *
 from analytics.models import Event
 
-from analytics.serializers import CreateEventSerializer, EventSerializer
+from analytics.serializers import EventSerializer, AnalyticsSerializer
 from django.db.models import Sum, Avg, DateTimeField, Count, Min, Max, F, FloatField
 from django.db.models.functions import Trunc, Cast
 
@@ -61,14 +61,26 @@ def save_cache(key, data):
 
 
 
-class CreateEvent(generics.CreateAPIView):
-    serializer_class = CreateEventSerializer
+class CreateEvent(generics.ListCreateAPIView):
+    serializer_class = EventSerializer
+    queryset = Event.objects.all()
     def perform_create(self, serializer):
         data =serializer.validated_data
         create_event.delay(data)
+class RetrieveDestroyEvent(mixins.RetrieveModelMixin,
+                           mixins.DestroyModelMixin,
+                           generics.GenericAPIView):
+
+    queryset = Event.objects.all()
+    serializer_class = EventSerializer
+
+    def get(self,request,*args,**kwargs):
+        return self.retrieve(request,*args,**kwargs)
+    def delete(self,request,*args,**kwargs):
+        return self.destroy(request,*args,**kwargs)
 
 def get_analytics_queryset(data):
-    serializer = EventSerializer(data=data)
+    serializer = AnalyticsSerializer(data=data)
 
     if serializer.is_valid():
         filters = {}
@@ -168,5 +180,3 @@ def analytics_view(request):
         return Response({'errors' : data}, status=status.HTTP_400_BAD_REQUEST)
 
     return JsonResponse({'error': 'Invalid request.'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
-
-

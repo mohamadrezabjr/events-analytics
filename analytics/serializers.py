@@ -10,7 +10,7 @@ VALID_SORT_FIELDS = {
     None: lambda f: ["date"],
 }
 
-class CreateEventSerializer(serializers.ModelSerializer):
+class EventSerializer(serializers.ModelSerializer):
     timestamp = serializers.DateTimeField(source='client_timestamp')
     server_timestamp = serializers.DateTimeField(read_only=True)
     class Meta:
@@ -23,7 +23,7 @@ class CreateEventSerializer(serializers.ModelSerializer):
             'server_timestamp',
             'metadata'
         ]
-class EventSerializer(serializers.Serializer):
+class AnalyticsSerializer(serializers.Serializer):
     metric = serializers.CharField(required=False, max_length=256)
     user_id = serializers.CharField(required=False, max_length=256)
     session_id = serializers.CharField(required=False, max_length=256)

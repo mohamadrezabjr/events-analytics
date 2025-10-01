@@ -16,12 +16,14 @@ class EventSerializer(serializers.ModelSerializer):
     class Meta:
         model = Event
         fields = [
+            'pk',
             'event_name',
             'user_id',
             'session_id',
             'timestamp',
             'server_timestamp',
-            'metadata'
+            'metadata',
+
         ]
 class AnalyticsSerializer(serializers.Serializer):
     metric = serializers.CharField(required=False, max_length=256)

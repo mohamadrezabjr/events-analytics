@@ -133,11 +133,11 @@ def get_analytics_queryset(data):
             else:
                 queryset = queryset.annotate(count=Count('id'))
 
-            if sort_by:
+            if sort_by in FIELDS:
                 order_pre = '' if order =='asc' else '-'
                 queryset = queryset.order_by(order_pre + FIELDS.get(sort_by))
-            else:
-                queryset = queryset.order_by(FIELDS.get(group_by))
+            elif sort_by:
+                queryset = queryset.order_by(sort_by)
         else:
             if aggregate in ['sum', 'avg', 'min', 'max']:
                 agg_func = AGGREGATE_FUNCS[aggregate]

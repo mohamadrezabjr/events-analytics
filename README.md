@@ -228,6 +228,50 @@ POST /api/analytics/
 | `sort_by` | Field name to sort by |
 | `order`   | `asc` or `desc`       |
 
+#### Example GET Request
+
+```http
+GET /api/analytics?metric=purchase&aggregate=sum&field=price&group_by=day&sort_by=sum_price
+```
+
+#### Example Response
+
+```json
+{
+    "request": {
+        "metric": "purchase",
+        "aggregate": "sum",
+        "field": "price",
+        "group_by": "day",
+        "sort_by": "sum_price"
+    },
+    "analytics": [
+        {
+            "date": "2025-09-22T00:00:00+03:30",
+            "sum_price": 194.3
+        },
+        {
+            "date": "2025-09-27T00:00:00+03:30",
+            "sum_price": 262.94
+        },
+        {
+            "date": "2025-09-21T00:00:00+03:30",
+            "sum_price": 264.96
+        },
+        {
+            "date": "2025-10-01T00:00:00+03:30",
+            "sum_price": 373.24
+        },
+        {
+            "date": "2025-09-29T00:00:00+03:30",
+            "sum_price": 674.22
+        }
+
+    ]
+}
+```
+
+---
 ### Analytics POST Method
 
 * Supports JSON body for all query parameters (GET equivalent).
@@ -239,27 +283,26 @@ POST /api/analytics/
 Content-Type: application/json
 
 {
-  "from_date": "2025-01-01T00:00:00Z",
-  "to_date": "2025-02-01T00:00:00Z",
-  "group_by": "day",
-  "aggregate": "count",
-  "metric": "purchase"
+    "metric" : "purchase",
+    "from_date" : 2025-01-01
+    "aggregate" : "max",
+    "field" : "price"
 }
 ```
 
 #### Example Response
 
 ```json
-[
-  {
-    "day": "2025-01-01",
-    "count": 42
-  },
-  {
-    "day": "2025-01-02",
-    "count": 38
-  }
-]
+{
+    "request": {
+        "metric": "purchase",
+        "aggregate": "max",
+        "field": "price"
+    },
+    "analytics": {
+        "max_price": 484.81
+    }
+}
 ```
 
 ---

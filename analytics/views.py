@@ -1,16 +1,10 @@
-import hashlib
-import json
-from datetime import datetime
-
-from django.core.serializers.json import DjangoJSONEncoder
 from django.http import JsonResponse
-from django_redis import get_redis_connection
 
 from rest_framework import generics, status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from analytics.tasks import create_event
+from analytics.tasks import *
 from analytics.models import Event
 
 from analytics.serializers import CreateEventSerializer, EventSerializer
@@ -45,7 +39,25 @@ FIELDS = {
     'timestamp' : 'client_timestamp',
 
 }
-CACHE_LIMIT = 256*1024*1024
+
+def get_cache(key):
+    con = get_redis_connection('default')
+    hashed_key = hash_data(key)
+    cached = con.get(f'request:{hashed_key}')
+
+    if cached:
+        cached = json.loads(cached)
+        cached['hits'] += 1
+        cached['last_used'] = datetime.now()
+        con.set(f'request:{hashed_key}', json.dumps(cached, cls=DjangoJSONEncoder))
+        return cached.get('data')
+    else:
+        return None
+
+def save_cache(key, data):
+    if not isinstance(data, dict):
+        data = list(data)
+    save_cache_task.delay(key, data)
 
 
 
@@ -157,53 +169,4 @@ def analytics_view(request):
 
     return JsonResponse({'error': 'Invalid request.'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
-def hash_data(data):
-    return hashlib.sha256(json.dumps(data, sort_keys = True).encode()).hexdigest()
-
-def get_cache(key):
-    con = get_redis_connection('default')
-    hashed_key = hash_data(key)
-    cached = con.get(f'request:{hashed_key}')
-
-    if cached:
-        cached = json.loads(cached)
-        cached['hits'] += 1
-        cached['last_used'] = datetime.now()
-        con.set(f'request:{hashed_key}', json.dumps(cached, cls=DjangoJSONEncoder))
-        return cached.get('data')
-    else:
-        return None
-def save_cache(key, data):
-    con = get_redis_connection('default')
-    info = con.info('memory')
-    used_memory = info['used_memory']
-    if used_memory > CACHE_LIMIT:
-        delete_least_used()
-
-    if not isinstance(data, dict):
-        data = list(data)
-
-    hashed_key = hash_data(key)
-    wrapper = {
-        'hits': 1,
-        'last_used': datetime.now(),
-        'data' : data,
-    }
-
-    con.set(f'request:{hashed_key}', json.dumps(wrapper, cls=DjangoJSONEncoder))
-
-def delete_least_used():
-    con = get_redis_connection('default')
-    keys = con.keys('request:*')
-    min_key = None
-    min_hits = None
-    for key in keys:
-        data = con.get(key)
-        if data:
-            data = json.loads(data)
-            if min_hits is None or data.get('hits') <= min_hits:
-                min_key = key
-                min_hits = data.get('hits')
-    if min_key :
-        con.delete(min_key)
 

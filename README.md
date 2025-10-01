@@ -284,7 +284,7 @@ Content-Type: application/json
 
 {
     "metric" : "purchase",
-    "from_date" : 2025-01-01,
+    "from_date" : "2025-01-01",
     "aggregate" : "max",
     "field" : "price"
 }

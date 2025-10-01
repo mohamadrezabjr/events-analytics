@@ -10,7 +10,8 @@ from analytics.models import Event
 from analytics.serializers import EventSerializer, AnalyticsSerializer
 from django.db.models import Sum, Avg, DateTimeField, Count, Min, Max, F, FloatField
 from django.db.models.functions import Trunc, Cast
-
+from django.views.decorators.cache import cache_page
+from django.utils.decorators import method_decorator
 
 
 AGGREGATE_FUNCS = {
@@ -67,6 +68,10 @@ class CreateEvent(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         data =serializer.validated_data
         create_event.delay(data)
+
+    @method_decorator(cache_page(60*15, key_prefix='event_list'))
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
 class RetrieveDestroyEvent(mixins.RetrieveModelMixin,
                            mixins.DestroyModelMixin,
                            generics.GenericAPIView):

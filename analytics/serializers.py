@@ -34,14 +34,16 @@ class EventSerializer(serializers.Serializer):
     device = serializers.CharField(required=False, max_length=256)
     browser = serializers.CharField(required=False, max_length=256)
     page = serializers.CharField(required=False, max_length=256)
-    referer = serializers.CharField(required=False, max_length=256)
+    referrer = serializers.CharField(required=False, max_length=256)
     product_id = serializers.CharField(required=False, max_length=256)
     product = serializers.CharField(required=False, max_length=256)
     price = serializers.DecimalField(required=False, decimal_places=2, max_digits=10)
 
 
     #Group by :
-    group_by = serializers.ChoiceField(choices = ['day', 'week', 'month', 'year'], required=False)
+    group_by_choices = ['day', 'week', 'month', 'year', 'device', 'referrer', 'metric', 'user_id', 'session_id',
+                        'browser', 'product', 'product_id']
+    group_by = serializers.ChoiceField(choices= group_by_choices,required=False)
     #Agreggate
     aggregate =serializers.ChoiceField(choices = ['sum', 'count', 'avg', 'min', 'max'], required=False)
     field = serializers.ChoiceField(choices=['price','screen_width','screen_height','step'], required=False)

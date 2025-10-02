@@ -118,7 +118,6 @@ POST /api/events/
 | `user_id`          | String    | No       | User identifier                    |
 | `session_id`       | String    | No       | Session identifier                 |
 | `timestamp`        | DateTime  | Yes      | Event timestamp on client          |
-| `server_timestamp` | DateTime  | Yes      | Event received timestamp on server |
 | `metadata`         | JSON      | No       | Additional event data              |
 
 ### Example Request
@@ -130,7 +129,6 @@ POST /api/events/
   "user_id": "123",
   "session_id": "abc-456",
   "timestamp": "2025-10-01T10:30:00Z",
-  "server_timestamp": "2025-10-01T10:30:05Z",
   "metadata": {
     "device": "mobile",
     "browser": "Chrome",

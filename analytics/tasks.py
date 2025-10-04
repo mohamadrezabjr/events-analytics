@@ -12,6 +12,7 @@ def create_event(data):
     if p_id :
         data['metadata']['product_id'] = str(p_id)
     event = Event.objects.create(**data)
+    event.save()
 
 
 CACHE_LIMIT = 256*1024*1024

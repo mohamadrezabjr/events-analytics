@@ -41,7 +41,7 @@ def get_analytics_queryset(data):
         filters = {}
         # Serializer fields filter
         serializer_fields = ['device', 'browser', 'page', 'referrer', 'product_id', 'product', 'price', 'metric',
-                             'even_name']
+                             'event_name', 'session_id', 'user_id']
         for serializer_field in serializer_fields:
             if serializer.validated_data.get(serializer_field):
                 filters[FIELDS.get(serializer_field)] = serializer.validated_data[serializer_field]

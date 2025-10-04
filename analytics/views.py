@@ -1,3 +1,4 @@
+from django.db.models.expressions import RawSQL
 from django.http import JsonResponse
 
 from rest_framework import generics, status , mixins
@@ -118,7 +119,11 @@ def get_analytics_queryset(data):
         field_name = None
         if field:
             queryset = queryset.annotate(
-                **{field + '_numeric': Cast(F(f'metadata__{field}'), FloatField())}
+                price_numeric=RawSQL(
+                    "COALESCE((metadata->>%s)::double precision, 0)",
+                    ("price",),
+                    output_field=FloatField()
+                )
             )
             field_name = field + '_numeric'
 

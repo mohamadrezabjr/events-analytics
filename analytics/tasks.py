@@ -8,6 +8,9 @@ from analytics.models import Event
 
 @shared_task
 def create_event(data):
+    p_id = data.get('metadata').get('product_id')
+    if p_id :
+        data['metadata']['product_id'] = str(p_id)
     event = Event.objects.create(**data)
 
 

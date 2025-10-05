@@ -12,7 +12,6 @@ def create_event(data):
     if p_id :
         data['metadata']['product_id'] = str(p_id)
     event = Event.objects.create(**data)
-    event.save()
 
 
 CACHE_LIMIT = 256*1024*1024
@@ -52,4 +51,9 @@ def delete_least_used():
                 min_hits = data.get('hits')
     if min_key :
         con.delete(min_key)
-
+@shared_task
+def delete_cache_keys(pattern):
+    con = get_redis_connection('default')
+    keys = con.keys(pattern)
+    for key in keys:
+        con.delete(key)

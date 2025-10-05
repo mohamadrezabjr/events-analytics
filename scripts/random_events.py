@@ -6,9 +6,19 @@ import datetime
 import uuid
 
 events = []
-def run():
+def run(*args):
 
+    n = 50
 
+    if args:
+        for arg in args:
+            try :
+                arg = int(arg)
+            except :
+                pass
+            else:
+                n= arg
+                break
     API_URL = "http://localhost:8000/api/events/"
 
     EVENT_NAMES = ["page_view", "click", "purchase", "signup"]
@@ -40,26 +50,29 @@ def run():
             "user_id": str(random.randint(1, 50)),
             "session_id": str(uuid.uuid4()),
             "timestamp": (datetime.datetime.now() - datetime.timedelta(
-                minutes=random.randint(0, 10000)
+                hours=random.randint(0, 20000),
+
+
             )).isoformat(),
             "metadata": metadata
         }
 
-    def generate_and_send_events(n=10):
-        for _ in range(n):
+    def generate_and_send_events(n):
+        for i in range(n):
             event = random_event()
             s_time = time.time()
             response = requests.post(API_URL, json=event)
             e_time = time.time()
             if response.status_code == 201:
-                print("✅ Event created:", f"Response time : {round((e_time - s_time)*1000, 2)} ms")
+                print(f"*{i} - ✅ Event created:", f"Response time : {round((e_time - s_time)*1000, 2)} ms")
             else:
                 print("❌ Failed:", response.status_code, response.text)
 
     start = time.time()
-    generate_and_send_events(100)
+    generate_and_send_events(n)
     end = time.time()
-    print(f"Total Response time for 100 requests : {round((end-start)*1000, 2)} ms")
+    total_time = end - start
+    print(f"Total Response time for {n} requests : {round((total_time)*1000, 2)} ms ({round(total_time,2)} seconds)")
 
 
 

@@ -67,14 +67,18 @@ def get_analytics_queryset(data):
 
         field_name = None
         if field:
-            queryset = queryset.annotate(
-                price_numeric=RawSQL(
-                    "COALESCE((metadata->>%s)::double precision, 0)",
-                    ("price",),
-                    output_field=FloatField()
-                )
-            )
             field_name = field + '_numeric'
+            queryset = queryset.annotate(
+                **{
+                    f'{field}_numeric':RawSQL(
+                    "(metadata->>%s)::double precision",
+                    (field,),
+                    output_field=FloatField()
+
+                )
+                }
+            )
+
 
         if group_by in FIELDS:
 

@@ -48,7 +48,7 @@ class AnalyticsSerializer(serializers.Serializer):
     group_by = serializers.ChoiceField(choices= group_by_choices,required=False)
     #Agreggate
     aggregate =serializers.ChoiceField(choices = ['sum', 'count', 'avg', 'min', 'max'], required=False)
-    field = serializers.ChoiceField(choices=['price','screen_width','screen_height','step'], required=False)
+    field = serializers.ChoiceField(choices=['price','duration', 'quantity'], required=False)
 
     sort_by = serializers.CharField(required=False)
     order = serializers.ChoiceField(choices=['asc', 'desc'], required=False)
